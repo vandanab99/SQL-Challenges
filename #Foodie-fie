@@ -1,0 +1,56 @@
+-- How many customers has Foodie-Fi ever had?
+ -- This is the customers counts who are members from start including the left customers
+ select count(distinct(customer_id)) from subscriptions;
+ 
+ -- not including left customer 
+  select count(distinct(customer_id))-(select count(customer_id) from subscriptions where plan_id = 4) from subscriptions;
+  
+  -- What is the monthly distribution of trial plan start_date values for our dataset 
+  -- use the start of the month as the group by value
+  
+  -- We have to get count of the trial customer according to onth
+  -- using the extract function to get the month from the date, count function to count the customers who are taking free trail
+ select extract(month from start_date),count(customer_id) 
+ from subscriptions 
+ where plan_id = 0
+group by  extract(month from start_date)
+order by 1;
+
+-- What plan start_date values occur after the year 2020 for our dataset? Show the breakdown by count of events for each plan_name
+
+-- find the plan that are available after 2020 using the extract function
+-- we need plan name so have to join the bothe tables using the plan id
+-- after joining count the custumer who are using the plans
+select distinct(s.plan_id),p.plan_name,count(p.plan_name) from subscriptions s
+inner join plans p on s.plan_id = p.plan_id
+where extract(year from start_date) > 2020 
+group by s.plan_id,p.plan_name
+order by s.plan_id;
+
+-- What is the customer count and percentage of customers who have churned rounded to 1 decimal place?
+
+with churn as
+(select count(customer_id) as churned from subscriptions s
+join plans p on s.plan_id = p.plan_id
+where p.plan_name = 'churn')
+
+select count(distinct(customer_id)) as customer_count,
+cast(
+ (select count(customer_id) as churned from subscriptions s
+join plans p on s.plan_id = p.plan_id
+where p.plan_name = 'churn') *100
+/count(distinct(customer_id)) as Decimal(10,1)) as churned_per
+from subscriptions;
+
+-- How many customers have churned straight after their initial free trial - what percentage is this rounded to the nearest whole number?
+
+select 
+count(case when plan_id = 4 then customer_id end) as ra_churned,
+round(count(case when plan_id = 4 then customer_id end) * 100 / 
+(select count(distinct(customer_id)) from subscriptions)) as ra_churned_per
+from subscriptions where 
+customer_id in
+(select customer_id from subscriptions 
+ group by customer_id
+ having count(customer_id) = 2
+order by 1);
